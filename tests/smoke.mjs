@@ -17,7 +17,12 @@ try{
   console.log("Home stats",stats);
   if(!stats[0].startsWith("₹"))throw Error("GVA headline must show monetary units, got "+stats[0]);
   await page.locator('[data-page="map"]').click();
-  await page.waitForFunction(()=>document.querySelector("#indiaMap .main-svg")&&document.querySelector("#mapLeaders .leader-row"),{timeout:70000});
+  await page.waitForFunction(()=>Number(document.querySelector("#indiaMap")?.dataset?.renderedStates)>=25 && Number(document.querySelector("#indiaMap")?.dataset?.coloredStates)>=5 && document.querySelector("#mapLeaders .leader-row"),null,{timeout:70000});
+  const shapes=await page.locator("#indiaMap svg path").count();
+  if(shapes<25)throw Error("Only "+shapes+" India map states drawn");
+  await page.locator("#indiaMap svg path").first().click({force:true});
+  await page.waitForFunction(()=>!document.querySelector("#stateClickPanel")?.classList.contains("hidden"),null,{timeout:15000});
+  console.log("Clickable India SVG states",shapes);
   const leaders=await page.locator("#mapLeaders .leader-row").count();
   if(leaders<5)throw Error("Insufficient map leaders: "+leaders);
   console.log("Map leaders",leaders);
