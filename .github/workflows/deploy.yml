@@ -28,7 +28,9 @@ jobs:
       - name: Verify completeness before publishing
         run: python scripts/verify_data.py
       - name: Check dashboard JavaScript syntax
-        run: node --check assets/app.js
+        run: |
+          node --check assets/app.js
+          node --check assets/discover.js
       - name: Print representative real dataset keys for schema check
         run: |
           python - <<'PY'
