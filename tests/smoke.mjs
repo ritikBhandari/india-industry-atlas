@@ -33,8 +33,9 @@ try{
   });
   if(mapDetail.features!==36||mapDetail.vertices<10000||mapDetail.longitude[0]>69||mapDetail.longitude[1]<96||mapDetail.latitude[0]>8||mapDetail.latitude[1]<35)throw Error("Invalid or oversimplified India state geometry: "+JSON.stringify(mapDetail));
   console.log("Geographic fidelity checks",mapDetail);
-  if(await page.locator('#indiaMap svg path[aria-label^="Lakshadweep"]').count()!==0)throw Error("Oversized Lakshadweep source polygon is still visible");
-  if(await page.locator('#indiaMap [data-island-markers="Lakshadweep"] circle').count()<5)throw Error("Lakshadweep island markers not rendered");
+  if(await page.locator('#indiaMap svg path[aria-label^="Lakshadweep"]').count()!==1)throw Error("Uploaded Lakshadweep polygon missing");
+  if(await page.locator('#indiaMap svg path[aria-label^="Andaman & Nicobar Islands"]').count()!==1)throw Error("LGD mapping failed for Andaman & Nicobar Islands");
+  if(await page.locator('#indiaMap svg path[aria-label^="Dadra & Nagar Havelli and Daman & Diu"]').count()!==1)throw Error("LGD mapping failed for merged UT");
   console.log("Clickable India SVG states",shapes);
   await page.locator("#indiaMap").screenshot({path:"india-map-screenshot.png"});
   const leaders=await page.locator("#mapLeaders .leader-row").count();
