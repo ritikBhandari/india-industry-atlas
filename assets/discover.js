@@ -48,6 +48,13 @@ const stateSlug=new Map(STATENAMES.map((n,i)=>[n,STATEFILES[i]]));
 const norm=s=>String(s||"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/&/g,"and").replace(/[^a-z0-9]/g,"");
 const stateAlias={"chhattisgarh":"Chattisgarh","jammuandkashmir":"Jammu & Kashmir","andamanandnicobarislands":"Andaman & Nicobar Islands","dadraandnagarhavelianddamananddiu":"Dadra & Nagar Havelli and Daman & Diu"};
 const byNorm=new Map(STATENAMES.map(n=>[norm(n),n]));
+const stateByLGD=new Map([
+[35,"Andaman & Nicobar Islands"],[28,"Andhra Pradesh"],[12,"Arunachal Pradesh"],[18,"Assam"],[10,"Bihar"],[4,"Chandigarh"],
+[22,"Chattisgarh"],[26,"Dadra & Nagar Havelli and Daman & Diu"],[7,"Delhi"],[30,"Goa"],[24,"Gujarat"],[6,"Haryana"],
+[2,"Himachal Pradesh"],[1,"Jammu & Kashmir"],[20,"Jharkhand"],[29,"Karnataka"],[32,"Kerala"],[37,"Ladakh"],
+[31,"Lakshadweep"],[23,"Madhya Pradesh"],[27,"Maharashtra"],[14,"Manipur"],[17,"Meghalaya"],[15,"Mizoram"],
+[13,"Nagaland"],[21,"Odisha"],[34,"Puducherry"],[3,"Punjab"],[8,"Rajasthan"],[11,"Sikkim"],[33,"Tamil Nadu"],
+[36,"Telangana"],[16,"Tripura"],[5,"Uttarakhand"],[9,"Uttar Pradesh"],[19,"West Bengal"]]);
 function geoState(label){return stateAlias[norm(label)]||byNorm.get(norm(label))||null}
 function opt(value,label){return new Option(label,String(value))}
 function fill(id,items,value){const el=typeof id==="string"?$(id):id;el.replaceChildren(...items.map(a=>Array.isArray(a)?opt(a[0],a[1]):opt(a,a)));if(value!==undefined)el.value=String(value);return el}
@@ -163,25 +170,7 @@ async function mapView(){
     tooltip.setAttribute("role","status");tooltip.hidden=true;
     for(const feature of geometry.features||[]){
       const geomName=feature.properties?.name||feature.properties?.NAME_1||feature.properties?.st_nm||"";
-      const state=geoState(geomName),item=lookup.get(state);
-      if(state==="Lakshadweep"){
-        // Boundary source includes an overlarge, inaccurate Lakshadweep shape.
-        // Use clearly labelled island markers instead of misleading polygon geometry.
-        const islandLocations=[[72.642,10.567],[72.175,10.849],[73.050,8.283],[73.647,10.065],[73.200,10.817],[72.780,11.224],[72.280,10.940]];
-        const islandGroup=create("g",{"data-island-markers":"Lakshadweep",role:"group","aria-label":"Lakshadweep island markers, not survey boundaries"});
-        for(const [lon,lat] of islandLocations){
-          const dot=create("circle",{cx:px(lon),cy:py(lat),r:3.3,fill:quantile(item?.value),stroke:"#ffffff","stroke-width":1.2,tabindex:0,"aria-label":"Lakshadweep island marker"});
-          const title=create("title");title.textContent="Lakshadweep (illustrative island markers)";dot.append(title);
-          dot.style.cursor="pointer";
-          const chooseIsland=()=>selectMapState(item||{name:state,value:null});
-          dot.addEventListener("click",chooseIsland);
-          dot.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();chooseIsland()}});
-          islandGroup.append(dot);
-        }
-        groups.append(islandGroup);
-        shapeCount++;if(item&&Number.isFinite(item.value))paintedCount++;
-        continue;
-      }
+      const state=stateByLGD.get(Number(feature.properties?.lgd_code))||geoState(geomName),item=lookup.get(state);
       const d=geometryPath(feature.geometry);
       if(!d)continue;
       shapeCount++;if(item&&Number.isFinite(item.value))paintedCount++;
