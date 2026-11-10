@@ -88,3 +88,24 @@ jobs:
           path: .
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify actual public GitHub Pages assets and interactions
+        run: |
+          python - <<'PY'
+          import urllib.request
+          base="https://ritikbhandari.github.io/india-industry-atlas/"
+          for path in ["", "assets/discover.js", "assets/discover.css", "data/coverage-report.json", "data/asi-nic2.json"]:
+              try:
+                  with urllib.request.urlopen(base+path,timeout=30) as response:
+                      print("LIVE",response.status,response.headers.get("content-type"),path,response.read(120)[:90])
+              except Exception as exc:
+                  print("LIVE ERROR",path,str(exc))
+          PY
+          ATLAS_BASE=https://ritikbhandari.github.io/india-industry-atlas/ node tests/smoke.mjs
+      - name: Preserve failed live-site screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-live-site-debug
+          path: smoke-screenshot.png
+          if-no-files-found: ignore
