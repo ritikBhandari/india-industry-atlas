@@ -69,6 +69,12 @@ jobs:
           name: atlas-browser-test-screenshot
           path: smoke-screenshot.png
           if-no-files-found: ignore
+      - name: Preserve actual India map screenshot for visual verification
+        uses: actions/upload-artifact@v4
+        with:
+          name: india-map-rendered-screenshot
+          path: india-map-screenshot.png
+          retention-days: 30
       - name: Preserve complete validated website as downloadable artifact
         uses: actions/upload-artifact@v4
         with:
