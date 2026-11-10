@@ -1,0 +1,42 @@
+import { chromium } from "playwright";
+const browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
+const page=await browser.newPage({viewport:{width:1365,height:900}});
+const errors=[];
+page.on("pageerror",e=>errors.push(e.message));
+const base=process.env.ATLAS_BASE||"http://127.0.0.1:8765";
+try{
+  await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
+  await page.waitForFunction(()=>document.querySelector("#dataBadge")?.textContent?.includes("verified data series"),{timeout:50000});
+  await page.waitForFunction(()=>document.querySelectorAll("#heroStats .stat strong").length>=4,{timeout:40000});
+  const stats=await page.locator("#heroStats .stat strong").allTextContents();
+  if(stats.every(v=>v.includes("No data")))throw Error("Headline values all unavailable");
+  console.log("Home stats",stats);
+  await page.locator('[data-page="map"]').click();
+  await page.waitForFunction(()=>document.querySelector("#indiaMap .main-svg")&&document.querySelector("#mapLeaders .leader-row"),{timeout:70000});
+  const leaders=await page.locator("#mapLeaders .leader-row").count();
+  if(leaders<5)throw Error("Insufficient map leaders: "+leaders);
+  console.log("Map leaders",leaders);
+  await page.locator('[data-page="states"]').click();
+  await page.waitForFunction(()=>document.querySelectorAll("#stateProfile .profile-card strong").length===4,{timeout:40000});
+  const cards=await page.locator("#stateProfile .profile-card strong").allTextContents();
+  if(cards.every(x=>x==="No data"))throw Error("State profile all missing");
+  console.log("State profile",cards);
+  await page.locator('[data-page="industries"]').click();
+  await page.waitForFunction(()=>document.querySelectorAll("#industryProfile .profile-card strong").length===4,{timeout:70000});
+  console.log("Industry profile",await page.locator("#industryProfile .profile-card strong").allTextContents());
+  await page.locator('[data-page="rankings"]').click();
+  await page.waitForFunction(()=>document.querySelector("#rankingChart .main-svg"),{timeout:45000});
+  await page.locator('[data-page="insights"]').click();
+  await page.waitForFunction(()=>document.querySelectorAll("#allInsights .insight-card").length>1,{timeout:45000});
+  console.log("Insights",await page.locator("#allInsights .insight-card").count());
+  await page.locator('[data-page="compare"]').click();
+  await page.waitForFunction(()=>document.querySelector("#compareChart .main-svg"),{timeout:45000});
+  await page.locator("#addLine").click();
+  if(await page.locator(".compare-row").count()<3)throw Error("Add comparison did not work");
+  console.log("Comparison rows",await page.locator(".compare-row").count());
+  if(errors.length)throw Error("Runtime errors: "+errors.join(" | "));
+  console.log("ALL INTERACTIVE SMOKE TESTS PASSED");
+}finally{
+  await page.screenshot({path:"smoke-screenshot.png",fullPage:true}).catch(()=>{});
+  await browser.close();
+}
