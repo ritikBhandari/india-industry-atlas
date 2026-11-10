@@ -22,6 +22,15 @@ try{
   if(shapes<25)throw Error("Only "+shapes+" India map states drawn");
   await page.locator("#indiaMap svg path").first().click({force:true});
   await page.waitForFunction(()=>!document.querySelector("#stateClickPanel")?.classList.contains("hidden"),null,{timeout:15000});
+  const mapDetail=await page.evaluate(async()=>{
+    const geo=await (await fetch("data/india-states.geojson")).json();
+    const polygons=geo.features.flatMap(f=>f.geometry.type==="Polygon"?[f.geometry.coordinates]:f.geometry.coordinates);
+    const numVertices=polygons.flatMap(p=>p.flat()).length;
+    const all=polygons.flatMap(p=>p.flat());
+    return{features:geo.features.length,vertices:numVertices,longitude:[Math.min(...all.map(p=>p[0])),Math.max(...all.map(p=>p[0]))],latitude:[Math.min(...all.map(p=>p[1])),Math.max(...all.map(p=>p[1]))]};
+  });
+  if(mapDetail.features!==36||mapDetail.vertices<10000||mapDetail.longitude[0]>69||mapDetail.longitude[1]<96||mapDetail.latitude[0]>8||mapDetail.latitude[1]<35)throw Error("Invalid or oversimplified India state geometry: "+JSON.stringify(mapDetail));
+  console.log("Geographic fidelity checks",mapDetail);
   console.log("Clickable India SVG states",shapes);
   const leaders=await page.locator("#mapLeaders .leader-row").count();
   if(leaders<5)throw Error("Insufficient map leaders: "+leaders);
