@@ -29,6 +29,26 @@ jobs:
         run: python scripts/verify_data.py
       - name: Check dashboard JavaScript syntax
         run: node --check assets/app.js
+      - name: Print representative real dataset keys for schema check
+        run: |
+          python - <<'PY'
+          import json
+          for file in ['asi-nic2','asi-nic3','asi-nic4','asi-state-nic2-maharashtra','asi-states-all']:
+              d=json.load(open('data/'+file+'.json'))
+              print(file, 'example keys:', list(d['series'])[:4])
+              print('example entry:', next(iter(d['series'].values()))['label'],next(iter(d['series'].values()))['unit'])
+          PY
+      - name: Preserve complete validated website as downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: industry-atlas-verified-full-site
+          path: |
+            index.html
+            assets/
+            data/
+            scripts/
+            README.md
+          retention-days: 30
       - uses: actions/configure-pages@v5
         with:
           enablement: true
