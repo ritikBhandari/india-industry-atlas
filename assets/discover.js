@@ -54,7 +54,11 @@ function fill(id,items,value){const el=typeof id==="string"?$(id):id;el.replaceC
 function metricLabel(id){return METRICS.find(m=>m[0]===String(id))?.[1]||id}
 function metricOptions(){return METRICS.map(m=>[m[0],m[1]])}
 function number(v,d=1){if(v===null||v===undefined||!Number.isFinite(v))return "No data";return Intl.NumberFormat("en-IN",{maximumFractionDigits:d}).format(v)}
-function short(v,unit){if(v===null||!Number.isFinite(v))return "No data";if(unit==="₹ lakhs"){if(Math.abs(v)>=1e7)return "₹"+number(v/1e7,2)+" lakh cr";if(Math.abs(v)>=1e5)return "₹"+number(v/1e5,2)+" thousand cr";return "₹"+number(v/100,1)+" cr"}if(unit?.includes("₹ lakh /"))return "₹"+number(v*1e5,0);if(unit==="%")return number(v,1)+"%";if(Math.abs(v)>=1e7)return number(v/1e7,2)+" cr";if(Math.abs(v)>=1e5)return number(v/1e5,2)+" lakh";return number(v,1)}
+function short(v,unit){if(v===null||!Number.isFinite(v))return "No data";const u=String(unit||"");
+if(/lakh\s*\/\s*(worker|factory)/i.test(u))return "₹"+number(v*1e5,0);
+if(u==="%")return number(v,1)+"%";
+if(/₹|inr|rupee|rs\.?|lakh/i.test(u)){if(Math.abs(v)>=1e7)return "₹"+number(v/1e7,2)+" lakh crore";if(Math.abs(v)>=1e5)return "₹"+number(v/1e5,2)+" thousand crore";return "₹"+number(v/100,1)+" crore";}
+if(Math.abs(v)>=1e7)return number(v/1e7,2)+" crore";if(Math.abs(v)>=1e5)return number(v/1e5,2)+" lakh";return number(v,1)}
 function showError(el,message){el.innerHTML='<div class="empty"></div>';el.firstChild.textContent=message}
 async function load(name){if(cache.has(name))return cache.get(name);if(pending.has(name))return pending.get(name);let p=fetch("data/"+name+".json").then(r=>{if(!r.ok)throw Error("Could not load "+name);return r.json()}).then(x=>{if(x.meta?.base!=="NIC 2008"||!x.series||x.dates?.length!==16)throw Error("Invalid source table: "+name);cache.set(name,x);if(/^asi-nic[234]$/.test(name)){let lvl=Number(name.slice(-1)),names=[];for(const [key,s] of Object.entries(x.series)){let m=/^i01_(\d+)$/.exec(key);if(!m)continue;let label=(s.label||"").split(" · ").slice(1).join(" · ");let cleaned=label.replace(new RegExp("^"+m[1]+"\\s*"),"").trim();names.push({code:m[1],name:cleaned||m[1]})}seriesNames[lvl]=names.sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}))}return x});pending.set(name,p);try{return await p}finally{pending.delete(name)}}
 const read=(obj,code,suffix)=>obj?.series?.["i"+String(code).padStart(2,"0")+"_"+suffix]||null;
