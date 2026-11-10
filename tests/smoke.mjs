@@ -38,6 +38,19 @@ try{
   await page.locator("#addLine").click();
   if(await page.locator(".compare-row").count()<3)throw Error("Add comparison did not work");
   console.log("Comparison rows",await page.locator(".compare-row").count());
+
+  await page.locator('[data-page="visuals"]').click();
+  await page.waitForFunction(()=>document.querySelector("#visualChart .main-svg"),null,{timeout:45000});
+  console.log("Visual quadrant rendered");
+  await page.locator('[data-visual="treemap"]').click();
+  await page.waitForFunction(()=>document.querySelector("#visualChart .treemaplayer"),null,{timeout:45000});
+  console.log("Treemap rendered");
+  await page.locator('[data-visual="heatmap"]').click();
+  await page.waitForFunction(()=>document.querySelector("#visualChart .heatmaplayer"),null,{timeout:45000});
+  console.log("Heatmap rendered");
+  await page.locator('[data-visual="rankshift"]').click();
+  await page.waitForFunction(()=>document.querySelector("#visualChart .scatterlayer"),null,{timeout:45000});
+  console.log("Ranking shift rendered");
   if(errors.length)throw Error("Runtime errors: "+errors.join(" | "));
   console.log("ALL INTERACTIVE SMOKE TESTS PASSED");
 }finally{
