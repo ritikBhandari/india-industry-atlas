@@ -1,0 +1,12 @@
+{
+  "name": "india-industry-atlas",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Discovery-first data-backed Indian industry explorer",
+  "scripts": {
+    "test:e2e": "node tests/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}
