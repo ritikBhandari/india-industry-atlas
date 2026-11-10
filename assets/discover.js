@@ -96,7 +96,7 @@ function renderInsightCards(target,findings){if(!findings.length){showError(targ
 async function insights(){try{await generateInsights();let type=$("insightType").value,list=type==="all"?allFindings:allFindings.filter(f=>f.type===type);renderInsightCards($("allInsights"),list.slice(0,45));$("surprise").onclick=()=>{if(!list.length)return;let r=list[Math.floor(Math.random()*list.length)];go("compare");preset(r.type,r.code)}}catch(e){showError($("allInsights"),e.message)}}
 
 async function rankMapData(){const metric=$("mapMetric").value,year=parseIndex($("mapYear").value),industry=$("mapIndustry").value,mode=$("mapView").value;let records=[];if(industry==="99999"){const obj=await load("asi-states-all");for(const state of STATENAMES){const s=extractState(obj,metric,state),v=mode==="growth"?periodGrowth(s,Math.max(0,year-5),year):valueAt(s,year);records.push({name:state,value:v,series:s})}}else{let count=0;for(let i=0;i<STATENAMES.length;i+=6){const group=STATENAMES.slice(i,i+6);const block=await Promise.all(group.map(async state=>{try{let s=await readSeries(metric,state,2,industry);return{name:state,value:mode==="growth"?periodGrowth(s,Math.max(0,year-5),year):valueAt(s,year),series:s}}catch(e){return{name:state,value:null}}}));records.push(...block);count+=group.length;$("mapSubtitle").textContent="Comparing states · "+count+"/"+STATENAMES.length+" loaded"}}return records}
-async function mapView(){const token=++mapToken;let metric=$("mapMetric").value,year=$("mapYear").value,view=$("mapView").value,industry=$("mapIndustry").value;const title=metricLabel(metric),caption=industry==="99999"?"All registered industries":(seriesNames[2].find(x=>x.code===industry)?.name||industry);$("mapTitle").textContent=title+" across India";$("mapSubtitle").textContent=caption+" · FY "+year;try{const records=await rankMapData();if(token!==mapToken)return;const data=sortValid(records),lo=Math.min(...data.map(x=>x.value)),hi=Math.max(...data.map(x=>x.value));$("mapRankCaption").textContent=(view==="growth"?"5-year change in ":"")+" "+title+" · "+year+" · "+data.length+" states with data";
+async function mapViewLegacyPlotly(){const token=++mapToken;let metric=$("mapMetric").value,year=$("mapYear").value,view=$("mapView").value,industry=$("mapIndustry").value;const title=metricLabel(metric),caption=industry==="99999"?"All registered industries":(seriesNames[2].find(x=>x.code===industry)?.name||industry);$("mapTitle").textContent=title+" across India";$("mapSubtitle").textContent=caption+" · FY "+year;try{const records=await rankMapData();if(token!==mapToken)return;const data=sortValid(records),lo=Math.min(...data.map(x=>x.value)),hi=Math.max(...data.map(x=>x.value));$("mapRankCaption").textContent=(view==="growth"?"5-year change in ":"")+" "+title+" · "+year+" · "+data.length+" states with data";
 $("mapLeaders").innerHTML="";for(let i=0;i<Math.min(12,data.length);i++){const x=data[i];let row=document.createElement("div");row.className="leader-row";row.innerHTML='<span class="rank-num">'+(i+1)+'</span><button></button><span>'+((view==="growth")?number(x.value,1)+"%":short(x.value,x.series?.unit))+'</span>';row.querySelector("button").textContent=x.name;row.querySelector("button").onclick=()=>selectMapState(x);$("mapLeaders").append(row)}
 if(!mapGeo){try{const r=await fetch("data/india-states.geojson");if(!r.ok)throw Error("Map boundaries not found");mapGeo=await r.json()}catch(e){noChart("indiaMap","The state boundary layer is unavailable. State rankings remain accessible to the right.");return}}
 const feat=mapGeo.features||[];for(const f of feat){f.id=f.properties?.name||f.properties?.NAME_1||f.properties?.st_nm||f.properties?.shapeName||""}
@@ -109,6 +109,92 @@ const available=valid.filter((x,i)=>x.geoName&&ranks[i]!==null);
 const trace={type:"choropleth",geojson:mapGeo,featureidkey:"properties.name",locations:available.map(x=>x.geoName),z:available.map(x=>ranks[valid.indexOf(x)]),zmin:0,zmax:1,colorscale:[[0,"#e88f7a"],[.49,"#f0c876"],[.51,"#f0c876"],[1,"#16866d"]],showscale:false,marker:{line:{color:"#fff",width:.7}},customdata:available.map(x=>x.record?.value),text:available.map(x=>geoState(x.geoName)||x.geoName),hovertemplate:"<b>%{text}</b><br>"+title+": %{customdata:,.2f}<extra></extra>"};
 await Plotly.react("indiaMap",[base,trace],{margin:{l:0,r:0,t:0,b:0},paper_bgcolor:"#fff",geo:{projection:{type:"mercator"},fitbounds:"locations",visible:true,showland:false,showcoastlines:false},dragmode:false},{responsive:true,displayModeBar:false});if(token!==mapToken)return;const plot=$("indiaMap");plot.removeAllListeners?.("plotly_click");plot.on("plotly_click",event=>{const state=geoState(event.points?.[0]?.location);if(state){const item=records.find(x=>x.name===state);selectMapState(item||{name:state,value:null})}})
 }catch(e){noChart("indiaMap","Could not display geographic data: "+e.message)}}
+
+async function mapView(){
+  const token=++mapToken, metric=$("mapMetric").value, year=$("mapYear").value, mode=$("mapView").value;
+  const industry=$("mapIndustry").value, title=metricLabel(metric);
+  const nic=seriesNames[2].find(x=>x.code===industry)?.name||industry;
+  $("mapTitle").textContent=title+" across India";
+  $("mapSubtitle").textContent=(industry==="99999"?"All registered industries":nic)+" · FY "+year;
+  const container=$("indiaMap");container.replaceChildren();
+  const status=document.createElement("p");status.className="loading-state";status.textContent="Preparing state map…";container.append(status);
+  try{
+    const [records,geometry]=await Promise.all([rankMapData(),loadMapGeometry()]);
+    if(token!==mapToken)return;
+    const data=sortValid(records),validValues=data.map(x=>x.value);
+    $("mapRankCaption").textContent=(mode==="growth"?"Five-year change in ":"")+title+" · "+year+" · "+data.length+" geographies reporting";
+    $("mapLeaders").replaceChildren();
+    for(let i=0;i<Math.min(12,data.length);i++){
+      const item=data[i],row=document.createElement("div");
+      row.className="leader-row";
+      const num=document.createElement("span");num.className="rank-num";num.textContent=i+1;
+      const btn=document.createElement("button");btn.textContent=item.name;btn.onclick=()=>selectMapState(item);
+      const val=document.createElement("span");val.textContent=mode==="growth"?number(item.value,1)+"%":short(item.value,item.series?.unit);
+      row.append(num,btn,val);$("mapLeaders").append(row)
+    }
+    const SVGNS="http://www.w3.org/2000/svg";
+    const create=(tag,attrs={})=>{const e=document.createElementNS(SVGNS,tag);for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));return e};
+    const map=create("svg",{viewBox:"0 0 720 720",role:"img","aria-label":title+" by Indian state","preserveAspectRatio":"xMidYMid meet"});
+    map.style.cssText="width:100%;height:100%;display:block;touch-action:manipulation";
+    const minX=67,maxX=99,minY=5,maxY=38;
+    const px=lon=>35+(lon-minX)/(maxX-minX)*650,py=lat=>26+(maxY-lat)/(maxY-minY)*660;
+    const ringPath=ring=>ring.map((coord,i)=>(i?"L":"M")+px(coord[0]).toFixed(2)+" "+py(coord[1]).toFixed(2)).join(" ")+" Z";
+    function geometryPath(g){
+      if(!g)return"";
+      if(g.type==="Polygon")return g.coordinates.map(ringPath).join(" ");
+      if(g.type==="MultiPolygon")return g.coordinates.map(poly=>poly.map(ringPath).join(" ")).join(" ");
+      return""
+    }
+    const lookup=new Map(records.map(x=>[x.name,x]));
+    const len=data.length,min=data.length?data[data.length-1].value:0,max=data.length?data[0].value:1;
+    const quantile=value=>{
+      if(value===null||value===undefined||!Number.isFinite(value))return "#d9e1e5";
+      const i=data.findIndex(x=>x.value===value),pct=len<=1?.5:1-i/(len-1);
+      if(mode==="rank")return pct>=.67?"#13886f":pct>=.34?"#efd187":"#e28f79";
+      const p=max===min?.5:(value-min)/(max-min);
+      return p>=.67?"#13886f":p>=.34?"#efd187":"#e28f79"
+    };
+    const bounds=create("rect",{x:0,y:0,width:720,height:720,fill:"#fff"});
+    map.append(bounds);
+    const groups=create("g",{"stroke-linejoin":"round"});
+    let shapeCount=0,paintedCount=0;
+    const tooltip=document.createElement("div");
+    tooltip.className="map-floating-tip";
+    tooltip.setAttribute("role","status");tooltip.hidden=true;
+    for(const feature of geometry.features||[]){
+      const geomName=feature.properties?.name||feature.properties?.NAME_1||feature.properties?.st_nm||"";
+      const state=geoState(geomName),item=lookup.get(state);
+      const d=geometryPath(feature.geometry);
+      if(!d)continue;
+      shapeCount++;if(item&&Number.isFinite(item.value))paintedCount++;
+      const p=create("path",{d,fill:quantile(item?.value),stroke:"#ffffff","stroke-width":1.5,"vector-effect":"non-scaling-stroke",tabindex:0,"aria-label":(state||geomName)+": "+(item?.value===null||item?.value===undefined?"No available data":mode==="growth"?number(item.value,1)+" percent":short(item.value,item.series?.unit))});
+      p.style.cssText="cursor:pointer;transition:fill .15s,stroke-width .15s";
+      const t=create("title");t.textContent=(state||geomName)+" — "+(item?.value==null?"No data":mode==="growth"?number(item.value,1)+"%":short(item.value,item.series?.unit));p.append(t);
+      const interact=()=>{if(item)selectMapState(item);else if(state)selectMapState({name:state,value:null})};
+      p.addEventListener("click",interact);p.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();interact()}});
+      p.addEventListener("mouseenter",()=>{p.setAttribute("stroke","#18516b");p.setAttribute("stroke-width",2.7);tooltip.textContent=t.textContent;tooltip.hidden=false});
+      p.addEventListener("mouseleave",()=>{p.setAttribute("stroke","#fff");p.setAttribute("stroke-width",1.5);tooltip.hidden=true});
+      groups.append(p)
+    }
+    map.append(groups);
+    const wrap=document.createElement("div");wrap.className="native-map-wrap";wrap.append(map,tooltip);
+    container.replaceChildren(wrap);
+    container.dataset.renderedStates=String(shapeCount);
+    container.dataset.coloredStates=String(paintedCount);
+    if(shapeCount<25||paintedCount<5)throw Error("Map geometry or value matching incomplete ("+shapeCount+" shapes; "+paintedCount+" coloured)");
+  }catch(e){
+    if(token!==mapToken)return;
+    console.error("India state map rendering error",e);
+    showError(container,"India map unavailable: "+e.message+". State rankings remain usable.");
+  }
+}
+let loadingGeometry=null;
+async function loadMapGeometry(){
+  if(mapGeo)return mapGeo;
+  if(!loadingGeometry)loadingGeometry=fetch("data/india-states.geojson").then(r=>{if(!r.ok)throw Error("Map boundaries returned HTTP "+r.status);return r.json()}).then(x=>{if(x?.type!=="FeatureCollection"||!x.features?.length)throw Error("Invalid map geometry");mapGeo=x;return x});
+  return loadingGeometry
+}
+
 function selectMapState(item){$("stateClickPanel").classList.remove("hidden");$("stateClickPanel").innerHTML='<div class="panel-top"><div><span class="overline">STATE SNAPSHOT</span><h3></h3><p class="muted"></p></div><button class="primary" id="openMapProfile">View full state profile →</button></div>';$("stateClickPanel").querySelector("h3").textContent=item.name;$("stateClickPanel").querySelector("p").textContent=metricLabel($("mapMetric").value)+": "+short(item.value,item.series?.unit)+" · FY "+$("mapYear").value;$("openMapProfile").onclick=()=>{fill("stateSelect",STATENAMES,item.name);go("states")}}
 function stateProfileMetric(metric,series,year){return '<div class="profile-card"><strong>'+short(valueAt(series,year),series?.unit)+'</strong><small>'+metric+'</small></div>'}
 function lineTrace(s,label,c,indexed=true){if(!s)return null;const base=s.values.find(v=>v!==null&&v!==0);return{type:"scatter",mode:"lines+markers",x:YEARS,y:s.values.map(v=>v===null?null:indexed&&base?v/base*100:v),name:label,line:{color:c,width:3},marker:{size:5},connectgaps:false}}
