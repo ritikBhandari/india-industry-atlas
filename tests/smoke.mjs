@@ -20,7 +20,9 @@ try{
   await page.waitForFunction(()=>Number(document.querySelector("#indiaMap")?.dataset?.renderedStates)>=25 && Number(document.querySelector("#indiaMap")?.dataset?.coloredStates)>=5 && document.querySelector("#mapLeaders .leader-row"),null,{timeout:70000});
   const shapes=await page.locator("#indiaMap svg path").count();
   if(shapes<25)throw Error("Only "+shapes+" India map states drawn");
-  await page.locator("#indiaMap svg path").first().click({force:true});
+  const maharashtraShape=page.locator('#indiaMap svg path[aria-label^="Maharashtra"]');
+  if(await maharashtraShape.count()!==1)throw Error("Maharashtra path missing from the map");
+  await maharashtraShape.dispatchEvent("click");
   await page.waitForFunction(()=>!document.querySelector("#stateClickPanel")?.classList.contains("hidden"),null,{timeout:15000});
   const mapDetail=await page.evaluate(async()=>{
     const geo=await (await fetch("data/india-states.geojson")).json();
