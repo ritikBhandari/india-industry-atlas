@@ -38,6 +38,21 @@ jobs:
               print(file, 'example keys:', list(d['series'])[:4])
               print('example entry:', next(iter(d['series'].values()))['label'],next(iter(d['series'].values()))['unit'])
           PY
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Smoke test the real, populated dashboard in Chromium
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/atlas-server.log 2>&1 &
+          node tests/smoke.mjs
+      - name: Save browser screenshot if checks fail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-browser-test-screenshot
+          path: smoke-screenshot.png
+          if-no-files-found: ignore
       - name: Preserve complete validated website as downloadable artifact
         uses: actions/upload-artifact@v4
         with:
