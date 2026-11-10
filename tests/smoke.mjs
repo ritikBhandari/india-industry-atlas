@@ -3,10 +3,14 @@ const browser=await chromium.launch({headless:true,args:["--no-sandbox"]});
 const page=await browser.newPage({viewport:{width:1365,height:900}});
 const errors=[];
 page.on("pageerror",e=>errors.push(e.message));
+page.on("console",msg=>{if(msg.type()==="error")console.log("BROWSER CONSOLE ERROR:",msg.text())});
+page.on("requestfailed",r=>console.log("FAILED REQUEST",r.url(),r.failure()?.errorText));
 const base=process.env.ATLAS_BASE||"http://127.0.0.1:8765";
 try{
   await page.goto(base,{waitUntil:"domcontentloaded",timeout:45000});
-  await page.waitForFunction(()=>document.querySelector("#dataBadge")?.textContent?.includes("verified data series"),{timeout:50000});
+  await page.waitForTimeout(4500);
+  console.log("INIT DEBUG",JSON.stringify({badge:await page.locator("#dataBadge").textContent(),errors,heading:await page.title(),statCount:await page.locator("#heroStats .stat strong").count()}));
+  await page.waitForFunction(()=>document.querySelector("#dataBadge")?.textContent?.includes("verified data series"),null,{timeout:16000});
   await page.waitForFunction(()=>document.querySelectorAll("#heroStats .stat strong").length>=4,{timeout:40000});
   const stats=await page.locator("#heroStats .stat strong").allTextContents();
   if(stats.every(v=>v.includes("No data")))throw Error("Headline values all unavailable");
