@@ -40,6 +40,20 @@ jobs:
               print(file, 'example keys:', list(d['series'])[:4])
               print('example entry:', next(iter(d['series'].values()))['label'],next(iter(d['series'].values()))['unit'])
           PY
+      - name: Diagnose summary-series and state keys
+        run: |
+          python - <<'PY'
+          import json
+          a=json.load(open('data/asi-nic2.json'))['series']
+          b=json.load(open('data/asi-states-all.json'))['series']
+          print('NIC2 total indicators:', [k for k in a if k.endswith('_99999')][:12])
+          print('GVA NIC2 codes:', [k for k in a if k.startswith('i19_')][-12:])
+          for key in ['i19_99999','i32_99999','i01_99999','i19_10']:
+              print(key, a.get(key,{}).get('data',[])[:2], a.get(key,{}).get('data',[])[-2:])
+          print('Maharashtra state keys:',[k for k in b if 'maharashtra' in k][:6])
+          for key in ['i19_maharashtra','i32_maharashtra']:
+              print(key,b.get(key,{}).get('data',[])[-2:])
+          PY
       - name: Install browser test dependencies
         run: |
           npm install --no-audit --no-fund
