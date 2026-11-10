@@ -15,6 +15,7 @@ try{
   const stats=await page.locator("#heroStats .stat strong").allTextContents();
   if(stats.every(v=>v.includes("No data")))throw Error("Headline values all unavailable");
   console.log("Home stats",stats);
+  if(!stats[0].startsWith("₹"))throw Error("GVA headline must show monetary units, got "+stats[0]);
   await page.locator('[data-page="map"]').click();
   await page.waitForFunction(()=>document.querySelector("#indiaMap .main-svg")&&document.querySelector("#mapLeaders .leader-row"),{timeout:70000});
   const leaders=await page.locator("#mapLeaders .leader-row").count();
