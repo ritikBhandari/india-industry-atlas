@@ -164,6 +164,24 @@ async function mapView(){
     for(const feature of geometry.features||[]){
       const geomName=feature.properties?.name||feature.properties?.NAME_1||feature.properties?.st_nm||"";
       const state=geoState(geomName),item=lookup.get(state);
+      if(state==="Lakshadweep"){
+        // Boundary source includes an overlarge, inaccurate Lakshadweep shape.
+        // Use clearly labelled island markers instead of misleading polygon geometry.
+        const islandLocations=[[72.642,10.567],[72.175,10.849],[73.050,8.283],[73.647,10.065],[73.200,10.817],[72.780,11.224],[72.280,10.940]];
+        const islandGroup=create("g",{"data-island-markers":"Lakshadweep",role:"group","aria-label":"Lakshadweep island markers, not survey boundaries"});
+        for(const [lon,lat] of islandLocations){
+          const dot=create("circle",{cx:px(lon),cy:py(lat),r:3.3,fill:quantile(item?.value),stroke:"#ffffff","stroke-width":1.2,tabindex:0,"aria-label":"Lakshadweep island marker"});
+          const title=create("title");title.textContent="Lakshadweep (illustrative island markers)";dot.append(title);
+          dot.style.cursor="pointer";
+          const chooseIsland=()=>selectMapState(item||{name:state,value:null});
+          dot.addEventListener("click",chooseIsland);
+          dot.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();chooseIsland()}});
+          islandGroup.append(dot);
+        }
+        groups.append(islandGroup);
+        shapeCount++;if(item&&Number.isFinite(item.value))paintedCount++;
+        continue;
+      }
       const d=geometryPath(feature.geometry);
       if(!d)continue;
       shapeCount++;if(item&&Number.isFinite(item.value))paintedCount++;
