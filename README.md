@@ -22,3 +22,7 @@ State-by-NIC3/NIC4 intersections are not present in the 42-table published colle
 
 ## Source verification
 The source collection advertises 63,455 time series in 42 files. This is a source claim **until** the GitHub workflow downloads and verifies the actual data. Exact counts and manifest checks are written to `data/coverage-report.json`.
+## State map geography, provenance and accuracy
+The choropleth uses the 36-state/UT low-resolution GeoJSON from [Vardhan Systems' vardhan-maps](https://github.com/Vardhan-Systems/vardhan-maps), built from OpenStreetMap and editorial boundary adjustments. **Map data © OpenStreetMap contributors, ODbL 1.0**. [Attribution and license terms](https://github.com/Vardhan-Systems/vardhan-maps/blob/main/ATTRIBUTION.md); [OpenStreetMap copyright](https://www.openstreetmap.org/copyright).
+
+This is an illustrative administrative geography layer, not an official Survey of India map. Contemporary states/UTs differ from some historical ASI reporting regions; the map does not infer comparable series for restructured regions. The automated browser test checks 36 shapes, at least 10,000 boundary vertices, Indian coordinate extent, state colouring and that state shapes respond to clicks. The geometry file retains the source ODbL licensing terms.
